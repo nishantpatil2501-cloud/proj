@@ -3,20 +3,30 @@ import mysql.connector
 import pandas as pd
 from datetime import datetime, timedelta
 
-# --- 1. DATABASE CONNECTION (LOCAL SETUP) ---
+# --- 1. DATABASE CONNECTION (SMART CLOUD/LOCAL SETUP) ---
 @st.cache_resource
 def _get_raw_connection():
-    return mysql.connector.connect(
-        host="localhost", 
-        user="root", 
-        password="nishant", 
-        database="BankingDB"
-    )
+    # If on Streamlit Cloud, it uses your Aiven secrets
+    if "DB_HOST" in st.secrets:
+        return mysql.connector.connect(
+            host=st.secrets["DB_HOST"],
+            user=st.secrets["DB_USER"],
+            password=st.secrets["DB_PASS"],
+            database=st.secrets["DB_NAME"],
+            port=st.secrets.get("DB_PORT", 25060)
+        )
+    # If on your laptop, it defaults to your local XAMPP/MySQL
+    else:
+        return mysql.connector.connect(
+            host="localhost", 
+            user="root", 
+            password="nishant", 
+            database="BankingDB"
+        )
 
 def get_db_connection():
     try:
         db = _get_raw_connection()
-        # This prevents the "MySQL Connection not available" timeout error
         db.ping(reconnect=True, attempts=3, delay=1)
         return db
     except Exception as e:
@@ -284,6 +294,7 @@ else:
         st.subheader("Update Information")
         
         new_name = st.text_input("Update Name", value=user_live['name'])
+        # The syntax error from line 287 is permanently fixed right here!
         new_mob = st.text_input("Update Mobile Number", value=user_live.get('mobile_no', ''))
         new_acc = st.text_input("Update Account Number (Caution!)", value=user_live['account_number'])
         
