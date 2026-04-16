@@ -284,4 +284,66 @@ else:
         st.subheader("Update Information")
         
         new_name = st.text_input("Update Name", value=user_live['name'])
-        new_mob = st.text_input("Update Mobile Number", value=user_live.get
+        new_mob = st.text_input("Update Mobile Number", value=user_live.get('mobile_no', ''))
+        new_acc = st.text_input("Update Account Number (Caution!)", value=user_live['account_number'])
+        
+        if st.button("Commit Identity Updates"):
+            try:
+                query = "UPDATE customers SET name = %s, account_number = %s"
+                params = [new_name, new_acc]
+                
+                try:
+                    cursor.execute("UPDATE customers SET mobile_no = %s WHERE account_number = %s", (new_mob, user_live['account_number']))
+                except mysql.connector.Error:
+                    st.warning("Mobile Number column 'mobile_no' missing in MySQL 'customers' table. Only Name/Acc updated.")
+                
+                query += " WHERE account_number = %s"
+                params.append(user_live['account_number'])
+                
+                cursor.execute(query, tuple(params))
+                db.commit()
+                
+                st.session_state.user_data['account_number'] = new_acc
+                st.success("Profile Identity Updated Successfully!")
+                st.rerun()
+            except Exception as e:
+                db.rollback()
+                st.error(f"Update failed. (If updating account number, check for Foreign Key constraints in transaction tables). Error: {e}")
+
+        st.divider()
+        new_pin = st.text_input("Reset Security PIN (4-Digits)", type="password", maxlength=4)
+        if st.button("Enforce New PIN"):
+            cursor.execute("UPDATE customers SET pin = %s WHERE account_number = %s", (new_pin, user_live['account_number']))
+            db.commit()
+            st.success("Security Credentials Updated!")
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    # --- TAB 10: SETTINGS ---
+    elif menu == "⚙️ Settings":
+        st.markdown('<h1 class="main-title">System Controls</h1>', unsafe_allow_html=True)
+        c1, c2 = st.columns(2)
+        with c1:
+            st.markdown('<div class="yono-card">', unsafe_allow_html=True)
+            st.subheader("💳 Hardware Control")
+            st.write("Instantly sever connection to your physical debit card.")
+            if st.session_state.card_active:
+                if st.button("Initiate Card Lockdown 🔴", use_container_width=True):
+                    st.session_state.card_active = False
+                    st.rerun()
+            else:
+                if st.button("Restore Card Access 🟢", use_container_width=True):
+                    st.session_state.card_active = True
+                    st.rerun()
+            st.markdown('</div>', unsafe_allow_html=True)
+            
+        with c2:
+            st.markdown('<div class="yono-card">', unsafe_allow_html=True)
+            st.subheader("🛑 Flow Limits")
+            st.write("Govern maximum daily capital outflow.")
+            limit = st.slider("Max Outflow (₹)", 10000, 500000, st.session_state.daily_limit, step=10000)
+            if st.button("Apply Parameters"):
+                st.session_state.daily_limit = limit
+                st.success("Outflow limits synchronized.")
+            st.markdown('</div>', unsafe_allow_html=True)
+
+    cursor.close()
