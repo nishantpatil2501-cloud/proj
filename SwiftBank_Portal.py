@@ -4,25 +4,17 @@ import pandas as pd
 from datetime import datetime, timedelta
 
 # --- 1. DATABASE CONNECTION (SMART CLOUD/LOCAL SETUP) ---
+# --- 1. DATABASE CONNECTION (FORCE CLOUD) ---
 @st.cache_resource
 def _get_raw_connection():
-    # If on Streamlit Cloud, it uses your Aiven secrets
-    if "DB_HOST" in st.secrets:
-        return mysql.connector.connect(
-            host=st.secrets["DB_HOST"],
-            user=st.secrets["DB_USER"],
-            password=st.secrets["DB_PASS"],
-            database=st.secrets["DB_NAME"],
-            port=st.secrets.get("DB_PORT", 25060)
-        )
-    # If on your laptop, it defaults to your local XAMPP/MySQL
-    else:
-        return mysql.connector.connect(
-            host="localhost", 
-            user="root", 
-            password="nishant", 
-            database="BankingDB"
-        )
+    # We are pulling these directly from the Secrets you just saved
+    return mysql.connector.connect(
+        host=st.secrets["DB_HOST"],
+        user=st.secrets["DB_USER"],
+        password=st.secrets["DB_PASS"],
+        database=st.secrets["DB_NAME"],
+        port=int(st.secrets["DB_PORT"])  # Ensures the port is an integer
+    )
 
 def get_db_connection():
     try:
@@ -30,9 +22,10 @@ def get_db_connection():
         db.ping(reconnect=True, attempts=3, delay=1)
         return db
     except Exception as e:
+        # This will tell us EXACTLY what address the code is still trying to use
+        st.error(f"Current Host in Code: {st.secrets.get('DB_HOST', 'Not Found')}")
         st.error(f"Connection Error: {e}")
         return None
-
 # --- 2. MULTI-THEME ENGINE ---
 if 'theme' not in st.session_state:
     st.session_state.theme = "Midnight Blue"
