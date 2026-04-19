@@ -3,29 +3,23 @@ import mysql.connector
 import pandas as pd
 from datetime import datetime, timedelta
 
-# --- 1. DATABASE CONNECTION (SMART CLOUD/LOCAL SETUP) ---
-# --- 1. DATABASE CONNECTION (FORCE CLOUD) ---
+# --- 1. DATABASE CONNECTION ---
 @st.cache_resource
-def _get_raw_connection():
-    # We are pulling these directly from the Secrets you just saved
-    return mysql.connector.connect(
-        host=st.secrets["DB_HOST"],
-        user=st.secrets["DB_USER"],
-        password=st.secrets["DB_PASS"],
-        database=st.secrets["DB_NAME"],
-        port=int(st.secrets["DB_PORT"])  # Ensures the port is an integer
-    )
-
 def get_db_connection():
     try:
-        db = _get_raw_connection()
+        db = mysql.connector.connect(
+            host=st.secrets["DB_HOST"],
+            user=st.secrets["DB_USER"],
+            password=st.secrets["DB_PASS"],
+            database=st.secrets["DB_NAME"],
+            port=int(st.secrets["DB_PORT"])
+        )
         db.ping(reconnect=True, attempts=3, delay=1)
         return db
-    except Exception as e:
-        # This will tell us EXACTLY what address the code is still trying to use
-        st.error(f"Current Host in Code: {st.secrets.get('DB_HOST', 'Not Found')}")
-        st.error(f"Connection Error: {e}")
+    except mysql.connector.Error as err:
+        st.error(f"Error connecting to Database: {err}")
         return None
+
 # --- 2. MULTI-THEME ENGINE ---
 if 'theme' not in st.session_state:
     st.session_state.theme = "Midnight Blue"
@@ -287,7 +281,6 @@ else:
         st.subheader("Update Information")
         
         new_name = st.text_input("Update Name", value=user_live['name'])
-        # The syntax error from line 287 is permanently fixed right here!
         new_mob = st.text_input("Update Mobile Number", value=user_live.get('mobile_no', ''))
         new_acc = st.text_input("Update Account Number (Caution!)", value=user_live['account_number'])
         
